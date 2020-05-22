@@ -27,7 +27,14 @@ SOFTWARE.
 
 #include <qsharedpointer.h>
 #include <qaction.h>
+#include <QtWidgets>
 #include <functional>
+
+/**
+* !!!!!
+* functions and classes in the file
+* they do not take ownership of any your widget, object,...
+*/
 
 namespace zhelper
 {
@@ -120,13 +127,130 @@ public:
 
 menu_end menu::end;
 
+class layout_context
+{
+public:
+    QWidget*& operator [](const int& s)
+    {
+        return wc_[s];
+    }
+private:
+    QMap<int, QWidget*> wc_;
+};
+
+template<class T, char a=' ', char b=' ', char c=' ', char d=' '>
+class prop_assign
+{
+public:
+    prop_assign() {}
+    prop_assign(T& t) : t_(t) {}
+    T t_;
+    prop_assign operator =(T& t)
+    {
+        return prop_assign(t);
+    }
+};
+
+typedef prop_assign<int, 'i', 'd'> T_Prop_id; T_Prop_id Prop_id;
+
+class ZQEmitter;
+template<class T> class layout_builder;
+// route the widget event handles to signal-slot
+
+class ZQEmitter : public QObject
+{
+    Q_OBJECT
+public:
+    Q_SIGNALS:
+    void leaveEvent(QEvent* event);  // do not switch window here.
+    void dropEvent(QDropEvent* event);
+    void dragEnterEvent(QDragEnterEvent *event);
+};
+#include "zqt_helper_moc.h"
+
+template<class QW>
+class ZQ : public QW
+{
+public:
+    template<typename ... Types>
+    ZQ(Types... args) : QW(args...) {}
+
+protected:
+    virtual void leaveEvent(QEvent* event)
+    {
+        QW::leaveEvent(event);
+        if (event->isAccepted())
+            Q_EMIT emit_.leaveEvent(event);
+
+    }
+    virtual void dropEvent(QDropEvent* event)
+    {
+        Q_EMIT emit_.dropEvent(event);
+    }
+    virtual void dragEnterEvent(QDragEnterEvent *event)
+    {
+        Q_EMIT emit_.dragEnterEvent(event);
+    }
+private:
+    template<class T> friend class layout_builder;
+    ZQEmitter emit_;
+};
+
+class lambda_transfer
+{
+public:
+    // thanks to a solution of deduce types of arguments and result of lambda to make std::function
+    //   by https://stackoverflow.com/questions/21245891/deduce-template-argument-when-lambda-passed-in-as-a-parameter
+    template<typename F>
+    auto operator , (const F& f)
+    {
+        return operator ()(f, &F::operator());
+    }
+private:
+    template<typename F, typename T>
+    std::function<void(T*)> operator () (const F& f, void(F::*)(T*) const)
+    {
+        return std::function<void(T*)>(f);
+    }
+    template<typename F, typename ... Args>
+    std::function<void(Args...)> operator () (const F& f, void(F::*)(Args...) const)
+    {
+        return std::function<void(Args...)>(f);
+    }
+};
+// use ZQ_SIGNAL<T, Args...> to solve a overloaded function
+template<typename T, typename ... Args>
+auto ZQ_SIGNAL(void(T::*f)(Args... ) )
+{
+    return f;
+}
+template<typename T, typename F, typename ... Args, typename Functor>
+void ZQ_CONNECT_IMPL(T* t, void(T::*f)(Args...),
+                     const Functor& functor, void(Functor::*)(Args...))
+{
+    QObject::connect(t, f, functor);
+}
+template<typename T, typename F, typename Functor>
+void ZQ_CONNECT(T* t, F* f, const Functor& functor)
+{
+    // it does not work, because of 'f' of a unsolved overloaded function
+    ZQ_CONNECT_IMPL(t, f, functor, &Functor::operator());
+}
+template<typename T, typename ... Args>
+void ZQ_CONNECT(T* t, void(T::*f)(Args...), const std::function<void(Args...)>& functor)
+{
+    QObject::connect(t, f, functor);
+}
+
+
 template<class T>
 class layout_builder
 {
 public:
     T* t_;
     QWidget* w_;
-    layout_builder(T* t) : t_(t), w_(NULL)
+    ZQEmitter* e_;
+    layout_builder(T* t) : t_(t), w_(NULL), e_(NULL)
     {
     }
     template<typename Y>
@@ -150,13 +274,13 @@ public:
         return *this;
     }
     template<typename Y>
-    layout_builder& operator [] (const std::function<void(Y*)>& config)
+    layout_builder& operator [] (const std::function<void(Y*)>& onload)
     {
         Y* y = dynamic_cast<Y*>(w_);
+        if (!y)
+            y = dynamic_cast<Y*>(t_);
         if (y)
-            config(y);
-        else if(y = dynamic_cast<Y*>(t_))
-            config(y);
+            onload(y);
         return *this;
     }
     layout_builder& operator [] (const QMargins& m)
@@ -168,7 +292,16 @@ public:
     layout_builder& operator [] (const std::pair<Signal, Slot>& ss)
     {
         if (w_)
-            QObject::connect((typename QtPrivate::FunctionPointer<Signal>::Object*) w_, ss.first, ss.second);
+        {
+            typedef typename QtPrivate::FunctionPointer<Signal>::Object Tsender;
+            Tsender* sender = dynamic_cast<Tsender*>(w_);
+            if (!sender)
+                sender = dynamic_cast<Tsender*>(e_);
+            if (sender)
+                QObject::connect(sender, ss.first, ss.second);
+                //connect(sender, ss);
+        }
+
         return *this;
     }
     layout_builder& operator [] (const QString& s)
@@ -200,24 +333,49 @@ private:
     {
         finish_prev_widget();
         w_ = y;
-        //t_->addWidget(y);
+        // we defer to t_->addWidget(y);
+        return *this;
+    }
+    template<class Y>
+    layout_builder& operator () (QWidget*, ZQ<Y>* y)
+    {
+        finish_prev_widget();
+        w_ = y;
+        e_ = &y->emit_;
+        // we defer to t_->addWidget(y);
         return *this;
     }
     template<typename Y>
     layout_builder& operator () (QLayout*, Y* y)
     {
         finish_prev_widget();
+#if 1
+        t_->addItem(y);
+#else
         //QWidget* gb = new QWidget;
         //gb->setLayout(y);
-        t_->addItem(y);
         //t_->addWidget(gb);
         //t_->setContentsMargins(0, 0, 0, 0);
         //gb->setFlat(true);
+#endif
         return *this;
+    }
+    template<class Sender, class Signal, class Slot>
+    void connect(Sender* sender, const std::pair<Signal, Slot>& ss)
+    {
+        QObject::connect(sender, ss.first, ss.second);
     }
     void setText(const QString& s, QObject* o)
     {
         o->setObjectName(s);
+        {
+            QLineEdit* edit = dynamic_cast<QLineEdit*>(o);
+            (edit) ? edit->setText(s) : (void)edit;
+        }
+        {
+            QAbstractButton* button = dynamic_cast<QAbstractButton*>(o);
+            (button) ? button->setText(s) : (void)button;
+        }
     }
     void setText(const QString& s, QGroupBox* o)
     {
@@ -229,6 +387,7 @@ private:
         {
             t_->addWidget(w_);
             w_ = NULL;
+            e_ = NULL;
         }
     }
 
@@ -238,12 +397,304 @@ class layout
 {
 public:
     static layout_end end;
+    static std::function<void(QLayout*)> oncomplete;
+    static lambda_transfer onload;
     template<class T>
     static layout_builder<T>& begin(T* t) { return * new layout_builder<T>(t); }
 };
 layout_end layout::end;
+std::function<void(QLayout*)> layout::oncomplete;
+lambda_transfer layout::onload;
 
+#define DECLARE_BIT_OP_TRANSFER(op) \
+class op##_transfer  \
+{   \
+public: \
+    template<class T>   \
+    auto operator , (const T& t)    \
+    {   \
+        return std::bind1st(std::op<T>(), t); \
+    }   \
+};  \
+op##_transfer op;
+
+DECLARE_BIT_OP_TRANSFER(bit_and)
+
+
+#undef DECLARE_BIT_OP_TRANSFER
+
+/* ----------------------------------------------------*/
+namespace tblwdgthlp
+{
+
+class cell;
+class row;
+class column;
+
+class cell_builder;
+class row_builder;
+class column_builder;
+
+class cell_end {};
+class cell_another {};
+class row_end {};
+class row_another {};
+class column_end {};
+
+class cell_builder
+{
+    // warning qtablewidget take ownership of new item of heap.
+public:
+    explicit cell_builder(QTableWidget* ctrl, bool modify = false)
+        : ctrl_(ctrl), col_(0), row_(0), modify_(modify), inuse_(false),
+        info_(0)
+    {
+        if (!modify)
+            info_ = new QTableWidgetItem;
+    }
+    cell_builder& operator ()(int row, int col)
+    {
+        modify_if_needed();
+        inuse_ = true;
+        row_ = row;
+        col_ = col;
+        if (ctrl_)
+        {
+            info_ = ctrl_->takeItem(row_, col_);
+            if (!info_)
+            {
+                ctrl_->setItem(row_, col_,
+                               info_ = new QTableWidgetItem);
+            }
+        }
+        return *this;
+    }
+    cell_builder& operator [](const QString& txt)
+    {
+        info_->setText(txt);
+        info_->setToolTip(txt);
+        return *this;
+    }
+    cell_builder& operator [](const QColor& color)
+    {
+        info_->setForeground(QBrush(color));
+        return *this;
+    }
+    cell_builder& operator [](const QFont& font)
+    {
+        info_->setFont(font);
+        return *this;
+    }
+    template<template<class T> typename Op>
+    cell_builder& operator [](const std::binder1st<Op<Qt::ItemFlags> >& flagop)
+    {
+        info_->setFlags(flagop(info_->flags()));
+        return *this;
+    }
+    QTableWidgetItem* operator ()(cell_end&)
+    {
+        QTableWidgetItem* ret = info_;
+        delete this;
+        return ret;
+    }
+    QTableWidgetItem* operator ()(cell_another&)
+    {
+        QTableWidgetItem* ret = info_;
+        info_ = new QTableWidgetItem;
+        return ret;
+    }
+private:
+    void modify_if_needed()
+    {
+        if (!modify_ || !inuse_ || !ctrl_)
+            return;
+
+        ctrl_->setItem(row_, col_, info_);
+        info_ = NULL;
+    }
+    bool inuse_;
+    bool modify_;
+    int row_;
+    int col_;
+    QTableWidgetItem* info_;
+    QTableWidget* ctrl_;
 };
+
+class cell
+{
+public:
+    static cell_end end;
+    static cell_another another;
+    static cell_builder& begin(QTableWidget* ctrl) { return *new cell_builder(ctrl, true); }
+    static cell_builder& begin() { return *new cell_builder(NULL); }
 };
+cell_end cell::end;
+cell_another cell::another;
+
+class column_builder
+{
+public:
+    column_builder(QTableWidget* ctrl) : ctrl_(ctrl)
+    {
+        col_ = ctrl->columnCount();
+    }
+    column_builder& operator ()(QTableWidgetItem* info)
+    {
+        finish_prev_cell();
+        cell_.reset();
+        ctrl_->insertColumn(col_);
+        ctrl_->setHorizontalHeaderItem(col_++, info);
+        return *this;
+    }
+    column_builder& operator ()(const QString& txt)
+    {
+        finish_prev_cell();
+        if (!cell_)
+            cell_.reset(&cell::begin());
+        (*cell_)[txt];
+        //ctrl_->InsertColumn(col_++, txt);
+        return *this;
+    }
+    column_builder& operator [](const QColor& color)
+    {
+        if (cell_)
+            (*cell_)[color];
+        return *this;
+    }
+    column_builder& operator [](const QFont& font)
+    {
+        if (cell_)
+            (*cell_)[font];
+        return *this;
+    }
+    QTableWidget* operator ()(column_end&)
+    {
+        finish_prev_cell();
+        QTableWidget* ret = ctrl_;
+        delete this;
+        return ret;
+    }
+private:
+    void finish_prev_cell()
+    {
+        if (!cell_)
+            return;
+
+        ctrl_->insertColumn(col_);
+        ctrl_->setHorizontalHeaderItem(col_++, cell_->operator ()(cell::another));
+    }
+
+    int col_;
+    QTableWidget* ctrl_;
+    QSharedPointer<cell_builder> cell_;
+};
+
+class column
+{
+public:
+    static column_end end;
+    static column_builder& begin(QTableWidget* ctrl) { return *new column_builder(ctrl); }
+};
+column_end column::end;
+
+class row_builder
+{
+public:
+    row_builder(QTableWidget* ctrl) : ctrl_(ctrl), col_(0)
+    {
+        row_ = ctrl->rowCount();
+    }
+    row_builder& operator ()(QTableWidgetItem* info)
+    {
+        finish_prev_cell();
+        cell_.reset();
+        if (col_ == 0)
+            ctrl_->insertRow(row_);
+        ctrl_->setItem(row_, col_++, info);
+        return *this;
+    }
+    row_builder& operator ()(const QString& txt)
+    {
+        finish_prev_cell();
+
+        if (col_ == 0)
+            ctrl_->insertRow(row_);
+
+        // defer to setItem
+        if (!cell_)
+            cell_.reset(&cell::begin());
+
+        // unlike the zwx version, wxlistctrl item takes the col_,
+        //                         qtablewidget item does not.
+        cell_->operator ()(row_, col_);
+        (*cell_)[txt];
+
+        return *this;
+    }
+    row_builder& operator [](const QColor& color)
+    {
+        if (cell_)
+            (*cell_)[color];
+        return *this;
+    }
+    row_builder& operator [](const QFont& font)
+    {
+        if (cell_)
+            (*cell_)[font];
+        return *this;
+    }
+    template<class T>
+    row_builder& operator [](const T& t)
+    {
+        if (cell_)
+            (*cell_)[t];
+        return *this;
+    }
+    QTableWidget* operator ()(row_end&)
+    {
+        finish_prev_cell();
+        QTableWidget* ret = ctrl_;
+        delete this;
+        return ret;
+    }
+    row_builder& operator ()(row_another&)
+    {
+        finish_prev_cell();
+        cell_.reset();
+        row_++;
+        col_ = 0;
+        return *this;
+    }
+private:
+    void finish_prev_cell()
+    {
+        // finish deferred setItem
+        if (!cell_)
+            return;
+        QTableWidgetItem* info = cell_->operator ()(cell::another);
+        // unlike the zwx version
+        ctrl_->setItem(row_, col_++, info);
+    }
+
+    int row_;
+    int col_;
+    QTableWidget* ctrl_;
+    QSharedPointer<cell_builder> cell_;
+};
+
+class row
+{
+public:
+    static row_end end;
+    static row_another another;
+    static row_builder& begin(QTableWidget* ctrl) { return *new row_builder(ctrl); }
+};
+row_end row::end;
+row_another row::another;
+
+}; // tblwdgthlp
+
+}; // qt5Widgets
+}; // zhelper
 
 #endif // ZQT_HELPER__H_
