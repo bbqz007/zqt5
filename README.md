@@ -30,7 +30,23 @@ layout::begin(somelayout)   // begin to write a layout
         [onchar = ...]      // configure onchar function associated with new element
     (layout::end)           // end up writing a layout
 ```
-
+as easy like writing a html
+```html
+<div id='0'>
+    <div id='1'>
+        <input type="button" onclick="handler()">
+    </div>
+    <div id='2'>
+        <input type="button" onclick="handler()">
+    </div>
+    <div id='3'>
+        <input type="button" onclick="handler()">
+    </div>
+    <div id='4'>
+        <input type="button" onclick="handler()">
+    </div>
+</div>
+```
 
 ### you can easily write menus like this
 ```c++
@@ -94,23 +110,7 @@ layout::begin(new layout)
          frame->SetLayout(layout);
      });
 ```
-### just easy like writing a html
-```html
-<div id='0'>
-    <div id='1'>
-        <input type="button" onclick="handler()">
-    </div>
-    <div id='2'>
-        <input type="button" onclick="handler()">
-    </div>
-    <div id='3'>
-        <input type="button" onclick="handler()">
-    </div>
-    <div id='4'>
-        <input type="button" onclick="handler()">
-    </div>
-</div>
-```
+
 
 ## how to use?
 
@@ -137,18 +137,11 @@ layout::begin(somelayout)   // begin to write a layout
     (layout::end)           // end up writing a layout
 ```
 
-## new features for programming with wxListCtrl
 
-* you do **not** need to fill things into item then insert and lots of code, 
-
-* you do **not** need to know about the interfaces of wxListCtrl.
-
-* you **just** need to write () and \[ ].
-
-#### 1. easy way to write wxListCtrl headers (columns)
+#### 1. easy way to write QTableWidget headers (columns)
 ```c++
-wxListCtrl* p = new wxListCtrl;
-using namespace zhelper::wxWidgets::listctrlhlp;
+QTableWidget* p = new QTableWidget;
+using namespace zhelper::qt5Widgets::tblwdgthlp;
 column::begin(p)
   ("col 1") [ font ] [ color ]
   ("col 2") [ font ] [ color ]
