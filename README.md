@@ -6,6 +6,13 @@ throw away the apis, i do not want to spend time memorizing.
 
 only two operator, the `( )` and `[ ]`.
 
+## try
+you do not need to depoly any compiler platform and sdks.
+
+goto my another project [KTL](https://github.com/bbqz007/KTL). download the app, size of 17M only.
+
+you can use this software to program qt window and run for fun.
+
 ## how to use
 
 * 1. run moc zqt_helper.h > zqt_helper_moc.h
