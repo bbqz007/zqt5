@@ -1,6 +1,10 @@
-#### a fork from zhelper_wxWidgets,  which can apply to qt5 window gui programming.
+#### easy syntax to write qt5 window base on QWidgets, similar to zhelper_wxWidgets.
 
 [github.com/bbqz007/zhelper-wxWidgets](github.com/bbqz007/zhelper-wxWidgets).
+
+throw away the apis, i do not want to spend time memorizing.
+
+only two operator, the `( )` and `[ ]`.
 
 ## how to use
 
