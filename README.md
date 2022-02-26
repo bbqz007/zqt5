@@ -4,7 +4,7 @@
 
 throw away the apis, i do not want to spend time memorizing.
 
-only two operator, the `( )` and `[ ]`.
+two core operators only, the `( )` and `[ ]`.
 
 ## try
 you do not need to depoly any compiler platform and sdks.
