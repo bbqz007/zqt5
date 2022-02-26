@@ -7,7 +7,7 @@ throw away the apis, i do not want to spend time memorizing.
 two core operators only, the `( )` and `[ ]`.
 * `( )` begin with a layout or an element.
 * `[ ]` any properties or fired events.
-* [just like](#just-like)
+* [just like](#just-like) `(new element)[prop1][prop2][onclick=lambda]`
 
 ## try
 you do not need to depoly any compiler platform and sdks.
