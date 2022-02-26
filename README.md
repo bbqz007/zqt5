@@ -11,7 +11,7 @@ you do not need to depoly any compiler platform and sdks.
 
 goto my another project [if you are goinng to try, click KTL](https://github.com/bbqz007/KTL). download the app, size of 17M only.
 
-you can use this software to program qt window and run for fun.
+you can use KTL app to program qt window and run it for fun, regardless of any huge hard deployment.
 
 ## how to use
 
