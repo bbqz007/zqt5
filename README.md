@@ -5,6 +5,8 @@
 throw away the apis, i do not want to spend time memorizing.
 
 two core operators only, the `( )` and `[ ]`.
+* `( )` begin with a layout or an element.
+* `[ ]` any properties or fired events.
 
 ## try
 you do not need to depoly any compiler platform and sdks.
