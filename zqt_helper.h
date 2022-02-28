@@ -275,6 +275,34 @@ struct
     }
 } id;
 
+struct onclick_bridge;
+template<typename Signal>
+struct onclick_prop
+{
+    std::function<void(bool)> f_;
+    Signal signal_;
+    auto& operator= (const std::function<void(bool)>& f)
+    {
+        f_ = f;
+        return *this;
+    }
+private:
+    onclick_prop() : signal_(0), f_(0) {}
+    friend struct onclick_bridge;
+};
+
+__thread
+struct onclick_bridge
+{
+    template<typename Signal>
+    auto operator[] (Signal sig)
+    {
+        onclick_prop<Signal> prop;
+        prop.signal_ = sig;
+        return prop;
+    }
+} onclick;
+
 template<class T>
 class layout_builder
 {
@@ -335,6 +363,12 @@ public:
         }
 
         return *this;
+    }
+    template<typename Signal>
+    layout_builder& operator [] (const onclick_prop<Signal>& op)
+    {
+        /// deprecated
+        return operator [] (std::make_pair(op.signal_, op.f_));
     }
     layout_builder& operator [] (const QString& s)
     {
