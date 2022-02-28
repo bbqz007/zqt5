@@ -242,6 +242,38 @@ void ZQ_CONNECT(T* t, void(T::*f)(Args...), const std::function<void(Args...)>& 
     QObject::connect(t, f, functor);
 }
 
+class QIdString : public QString
+{
+public:
+    QIdString& operator= (const QString& s)
+    {
+        QString::operator=(s);
+        /// clang bug https://stackoverflow.com/questions/25147667/clang-produces-illegal-instruction-where-gcc-doesnt
+        return *this;
+    }
+    QIdString& operator= (QString&& s)
+    {
+        QString::operator=(std::move(s));
+        return *this;
+    }
+};
+
+__thread
+struct
+{
+    QIdString operator= (const QString& s)
+    {
+        QIdString idstr;
+        idstr = s;
+        return idstr;
+    }
+    QIdString operator= (QString&& s)
+    {
+        QIdString idstr;
+        idstr = std::move(s);
+        return idstr;
+    }
+} id;
 
 template<class T>
 class layout_builder
@@ -312,6 +344,14 @@ public:
             setText(s, t_);
         return *this;
     }
+    layout_builder& operator [] (const QIdString& s)
+    {
+        if (w_)
+            setId((const QString&)s, w_);
+        else
+            setId((const QString&)s, t_);
+        return *this;
+    }
 
     T* operator () (layout_end&)
     {
@@ -364,6 +404,14 @@ private:
     void connect(Sender* sender, const std::pair<Signal, Slot>& ss)
     {
         QObject::connect(sender, ss.first, ss.second);
+    }
+    void setId(const QString& s, QObject* o)
+    {
+        o->setObjectName(s);
+    }
+    void setId(const QString& s, QGroupBox* o)
+    {
+        /// do nothing
     }
     void setText(const QString& s, QObject* o)
     {
@@ -537,6 +585,7 @@ public:
     column_builder(QTableWidget* ctrl) : ctrl_(ctrl)
     {
         col_ = ctrl->columnCount();
+        width_ = 0;
     }
     column_builder& operator ()(QTableWidgetItem* info)
     {
@@ -567,6 +616,11 @@ public:
             (*cell_)[font];
         return *this;
     }
+    column_builder& operator [](const int width)
+    {
+        width_ = width;
+        return *this;
+    }
     QTableWidget* operator ()(column_end&)
     {
         finish_prev_cell();
@@ -582,9 +636,13 @@ private:
 
         ctrl_->insertColumn(col_);
         ctrl_->setHorizontalHeaderItem(col_++, cell_->operator ()(cell::another));
+        if (width_ > 0)
+            ctrl_->setColumnWidth(col_ - 1, width_);
+        width_ = 0;
     }
 
     int col_;
+    int width_;
     QTableWidget* ctrl_;
     QSharedPointer<cell_builder> cell_;
 };
