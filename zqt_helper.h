@@ -242,6 +242,8 @@ void ZQ_CONNECT(T* t, void(T::*f)(Args...), const std::function<void(Args...)>& 
     QObject::connect(t, f, functor);
 }
 
+///////////////////////////
+
 class QIdString : public QString
 {
 public:
@@ -276,41 +278,22 @@ struct
 } id;
 
 struct onclick_bridge;
-template<typename Signal>
+template<typename Widget>
 struct onclick_prop
 {
-    std::function<void(bool)> f_;
-    Signal signal_;
-    auto& operator= (const std::function<void(bool)>& f)
-    {
-        f_ = f;
-        return *this;
-    }
-private:
-    onclick_prop() : signal_(0), f_(0) {}
-    friend struct onclick_bridge;
-};
-
-template<typename Widget>
-struct onclick_prop2
-{
     std::function<void(Widget*)> f_;
+private:
+    onclick_prop() {}
+    friend struct onclick_bridge;
 };
 
 __thread
 struct onclick_bridge
 {
-    template<typename Signal>
-    auto operator[] (Signal sig)
-    {
-        onclick_prop<Signal> prop;
-        prop.signal_ = sig;
-        return prop;
-    }
     template<typename Widget>
     auto operator= (const std::function<void(Widget*)>& f)
     {
-        onclick_prop2<Widget> prop;
+        onclick_prop<Widget> prop;
         prop.f_ = f;
         return prop;
     }
@@ -347,6 +330,11 @@ struct onsignal_prop
     {
         return std::make_pair(signal_, functor);
     }
+    template<typename Functor>
+    auto operator, (const Functor& functor)
+    {
+        return std::make_pair(signal_, functor);
+    }
 private:
     onsignal_prop() : signal_(0) {}
     friend struct onsignal_bridge;
@@ -362,7 +350,50 @@ struct onsignal_bridge
         prop.signal_ = sig;
         return prop;
     }
+    template<typename Signal>
+    auto operator() (Signal sig)
+    {
+        onsignal_prop<Signal> prop;
+        prop.signal_ = sig;
+        return prop;
+    }
+    template<typename Signal>
+    auto operator= (Signal sig)
+    {
+        onsignal_prop<Signal> prop;
+        prop.signal_ = sig;
+        return prop;
+    }
 } onsignal;
+
+struct onchar_bridge;
+template<typename Widget>
+struct onchar_prop
+{
+    std::function<void(Widget*, const QString&)> f_;
+private:
+    onchar_prop() {}
+    friend struct onchar_bridge;
+};
+
+__thread
+struct onchar_bridge
+{
+    template<typename Widget>
+    auto operator= (const std::function<void(Widget*, const QString&)>& f)
+    {
+        onchar_prop<Widget> prop;
+        prop.f_ = f;
+        return prop;
+    }
+    template<typename Functor>
+    auto operator= (const Functor& functor)
+    {
+        return operator= ((lambda_transfer(), functor));
+    }
+} onchar;
+
+///////////////////////////
 
 template<class T>
 class layout_builder
@@ -425,14 +456,8 @@ public:
 
         return *this;
     }
-    template<typename Signal>
-    layout_builder& operator [] (const onclick_prop<Signal>& op)
-    {
-        /// deprecated
-        return operator [] (std::make_pair(op.signal_, op.f_));
-    }
     template<typename Widget>
-    layout_builder& operator [] (const onclick_prop2<Widget>& op)
+    layout_builder& operator [] (const onclick_prop<Widget>& op)
     {
         /// deprecated
         auto f = op.f_;
@@ -445,6 +470,21 @@ public:
                 sender = dynamic_cast<Tsender*>(e_);
         }
         return operator [] (std::make_pair(&Widget::clicked, [=](bool){ f((Widget*)sender); }));
+    }
+    template<typename Widget>
+    layout_builder& operator [] (const onchar_prop<Widget>& op)
+    {
+        /// deprecated
+        auto f = op.f_;
+        typedef typename QtPrivate::FunctionPointer<decltype(&Widget::textChanged)>::Object Tsender;
+        Tsender* sender = 0;
+        if (w_)
+        {
+            sender = dynamic_cast<Tsender*>(w_);
+            if (!sender)
+                sender = dynamic_cast<Tsender*>(e_);
+        }
+        return operator [] (std::make_pair(&Widget::textChanged, [=](const QString& s){ f((Widget*)sender, s); }));
     }
     layout_builder& operator [] (const QString& s)
     {
