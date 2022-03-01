@@ -157,8 +157,8 @@ layout::begin(somelayout)   // begin to write a layout
 QTableWidget* p = new QTableWidget;
 using namespace zhelper::qt5Widgets::tblwdgthlp;
 column::begin(p)
-  ("col 1") [ font ] [ color ]
-  ("col 2") [ font ] [ color ]
+  ("col 1") [ font ] [ color ] [ length ]
+  ("col 2") [ font ] [ color ] [ length ]
   (column::end)
 ```
 
