@@ -291,6 +291,12 @@ private:
     friend struct onclick_bridge;
 };
 
+template<typename Widget>
+struct onclick_prop2
+{
+    std::function<void(Widget*)> f_;
+};
+
 __thread
 struct onclick_bridge
 {
@@ -301,7 +307,62 @@ struct onclick_bridge
         prop.signal_ = sig;
         return prop;
     }
+    template<typename Widget>
+    auto operator= (const std::function<void(Widget*)>& f)
+    {
+        onclick_prop2<Widget> prop;
+        prop.f_ = f;
+        return prop;
+    }
+    template<typename Functor>
+    auto operator= (const Functor& functor)
+    {
+        return operator= ((lambda_transfer(), functor));
+    }
+    auto& operator= (const std::function<void()>& f)
+    {
+        return f;
+    }
 } onclick;
+
+__thread
+struct onload_bridge
+{
+    template<typename Functor>
+    auto operator= (const Functor& functor)
+    {
+        return (lambda_transfer(), functor);
+    }
+} onload;
+
+struct onsignal_bridge;
+
+template<typename Signal>
+struct onsignal_prop
+{
+    Signal signal_;
+
+    template<typename Functor>
+    auto operator= (const Functor& functor)
+    {
+        return std::make_pair(signal_, functor);
+    }
+private:
+    onsignal_prop() : signal_(0) {}
+    friend struct onsignal_bridge;
+};
+
+__thread
+struct onsignal_bridge
+{
+    template<typename Signal>
+    auto operator[] (Signal sig)
+    {
+        onsignal_prop<Signal> prop;
+        prop.signal_ = sig;
+        return prop;
+    }
+} onsignal;
 
 template<class T>
 class layout_builder
@@ -369,6 +430,21 @@ public:
     {
         /// deprecated
         return operator [] (std::make_pair(op.signal_, op.f_));
+    }
+    template<typename Widget>
+    layout_builder& operator [] (const onclick_prop2<Widget>& op)
+    {
+        /// deprecated
+        auto f = op.f_;
+        typedef typename QtPrivate::FunctionPointer<decltype(&Widget::clicked)>::Object Tsender;
+        Tsender* sender = 0;
+        if (w_)
+        {
+            sender = dynamic_cast<Tsender*>(w_);
+            if (!sender)
+                sender = dynamic_cast<Tsender*>(e_);
+        }
+        return operator [] (std::make_pair(&Widget::clicked, [=](bool){ f((Widget*)sender); }));
     }
     layout_builder& operator [] (const QString& s)
     {
