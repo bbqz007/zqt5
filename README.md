@@ -1,5 +1,5 @@
 #### easy syntax to write qt5 window base on QWidgets, similar to zhelper_wxWidgets.
-
+![img](https://github.com/bbqz007/KTL/blob/master/resources/GIF_KTL_QT_TOOL2_EDIT.gif)
 [if you want this easy syntax apply to WxWidgets, click here](github.com/bbqz007/zhelper-wxWidgets).
 
 throw away the apis, i do not want to spend time memorizing.
