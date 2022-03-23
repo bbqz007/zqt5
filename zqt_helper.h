@@ -605,18 +605,20 @@ std::function<void(QLayout*)> layout::oncomplete;
 lambda_transfer layout::onload;
 
 #define DECLARE_BIT_OP_TRANSFER(op) \
-class op##_transfer  \
+class bits_##op##_transfer  \
 {   \
 public: \
     template<class T>   \
     auto operator , (const T& t)    \
     {   \
-        return std::bind1st(std::op<T>(), t); \
+        return std::bind1st(std::bit_##op<T>(), t); \
     }   \
 };  \
-op##_transfer op;
+bits_##op##_transfer bits_##op;
 
-DECLARE_BIT_OP_TRANSFER(bit_and)
+/// Z#bug#20220323
+///  ambiguous with std::bit_and at <functional>
+DECLARE_BIT_OP_TRANSFER(and)
 
 
 #undef DECLARE_BIT_OP_TRANSFER
