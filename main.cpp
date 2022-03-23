@@ -105,10 +105,10 @@ MyMainWindow::MyMainWindow(QWidget* parent)
             using namespace tblwdgthlp;
             row::begin(table)
                 (QString("%1").arg(bg->processId()))
-                    [bit_and, (Qt::ItemFlags)~Qt::ItemIsEnabled]
+                    [bits_and, (Qt::ItemFlags)~Qt::ItemIsEnabled]
                     [QColor("darkBlue")]
                 (cmd)
-                    [bit_and, (Qt::ItemFlags)~Qt::ItemIsEnabled]
+                    [bits_and, (Qt::ItemFlags)~Qt::ItemIsEnabled]
                 ("Unknown")
                 ("Unknown")
                 (row::end);
