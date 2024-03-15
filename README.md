@@ -1,4 +1,4 @@
-#### easy syntax to write qt5 window base on QWidgets, similar to zhelper_wxWidgets.
+#### easy syntax to write qt5 window base on QWidgets.
 ![img](https://github.com/bbqz007/KTL/blob/master/resources/GIF_KTL_QT_TOOL2_EDIT.gif)
 [if you want this easy syntax apply to WxWidgets, click here](github.com/bbqz007/zhelper-wxWidgets).
 
