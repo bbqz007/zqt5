@@ -1,7 +1,3 @@
-#### easy syntax to write qt5 window base on QWidgets.
-![img](https://github.com/bbqz007/KTL/blob/master/resources/GIF_KTL_QT_TOOL2_EDIT.gif)
-[if you want this easy syntax apply to WxWidgets, click here](github.com/bbqz007/zhelper-wxWidgets).
-
 ### concepts
 Forget about APIs, don't waste time trying to memorize them.
 
@@ -9,11 +5,17 @@ there are two core operators only, the `( )` and `[ ]`.
 * `( )` begin with a layout or an element.
 * `[ ]` any properties or fired events.
 * [just like](#just-like) `(new element)[prop1][prop2][onclick=lambda]`, like a html `<tag prop1 prop2 onclick=js_func() />`
+  
+#### easy syntax to write qt5 window base on QWidgets.
+![img](https://github.com/bbqz007/KTL/blob/master/resources/GIF_KTL_QT_TOOL2_EDIT.gif)
+[if you want this easy syntax apply to WxWidgets, click here](github.com/bbqz007/zhelper-wxWidgets).
+
+
 
 ## try
 you do not need to depoly any compiler platform and sdks.
 
-goto my another project [if you are goinng to try, click KTL](https://github.com/bbqz007/KTL). download the app, size of 17M only.
+goto my another project [if you are goinng to try, click KTL](https://github.com/bbqz007/KTL). download the newest app, size of 71M only.
 
 you can use KTL app to program qt window and run it for fun, regardless of any huge hard deployment.
 
