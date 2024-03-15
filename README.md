@@ -2,12 +2,13 @@
 ![img](https://github.com/bbqz007/KTL/blob/master/resources/GIF_KTL_QT_TOOL2_EDIT.gif)
 [if you want this easy syntax apply to WxWidgets, click here](github.com/bbqz007/zhelper-wxWidgets).
 
-throw away the apis, i do not want to spend time memorizing.
+### concepts
+Forget about APIs, don't waste time trying to memorize them.
 
-two core operators only, the `( )` and `[ ]`.
+there are two core operators only, the `( )` and `[ ]`.
 * `( )` begin with a layout or an element.
 * `[ ]` any properties or fired events.
-* [just like](#just-like) `(new element)[prop1][prop2][onclick=lambda]`
+* [just like](#just-like) `(new element)[prop1][prop2][onclick=lambda]`, like a html `<tag prop1 prop2 onclick=js_func() />`
 
 ## try
 you do not need to depoly any compiler platform and sdks.
