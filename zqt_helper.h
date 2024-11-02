@@ -25,9 +25,9 @@ SOFTWARE.
 #ifndef ZQT_HELPER__H_
 #define ZQT_HELPER__H_
 
-#include <qsharedpointer.h>
-#include <qaction.h>
-#include <QtWidgets>
+#include <QtCore/qsharedpointer.h>
+#include <QtWidgets/qaction.h>
+#include <QtWidgets/QtWidgets>
 #include <functional>
 
 /**
@@ -206,6 +206,11 @@ public:
     {
         return operator ()(f, &F::operator());
     }
+    template<typename F>
+    auto operator , (F&& f)
+    {
+        return operator ()(std::forward<F>(f), &std::decay<F>::type::operator());
+    }
 private:
     template<typename F, typename T>
     std::function<void(T*)> operator () (const F& f, void(F::*)(T*) const)
@@ -216,6 +221,16 @@ private:
     std::function<void(Args...)> operator () (const F& f, void(F::*)(Args...) const)
     {
         return std::function<void(Args...)>(f);
+    }
+    template<typename F, typename T>
+    std::function<void(T*)> operator () (F&& f, void(std::decay<F>::type::*)(T*))
+    {
+        return std::function<void(T*)>(f);
+    }
+    template<typename F, typename ... Args>
+    std::function<void(Args...)> operator () (F&& f, void(F::*)(Args...))
+    {
+        return std::function<void(Args...)>(std::forward<F>(f));
     }
 };
 // use ZQ_SIGNAL<T, Args...> to solve a overloaded function
@@ -316,6 +331,21 @@ struct onload_bridge
     {
         return (lambda_transfer(), functor);
     }
+    template<typename Functor>
+    auto operator, (const Functor& functor)
+    {
+        return (lambda_transfer(), functor);
+    }
+    template<typename Functor>
+    auto operator= (Functor&& functor)
+    {
+        return (lambda_transfer(), std::forward<Functor>(functor));
+    }
+    template<typename Functor>
+    auto operator, (Functor&& functor)
+    {
+        return (lambda_transfer(), std::forward<Functor>(functor));
+    }
 } onload;
 
 struct onsignal_bridge;
@@ -392,6 +422,33 @@ struct onchar_bridge
         return operator= ((lambda_transfer(), functor));
     }
 } onchar;
+
+struct onchange_bridge;
+template<typename Widget>
+struct onchange_prop
+{
+    std::function<void(Widget*, int)> f_;
+private:
+    onchange_prop() {}
+    friend struct onchange_bridge;
+};
+
+__thread
+struct onchange_bridge
+{
+    template<typename Widget>
+    auto operator= (const std::function<void(Widget*, int)>& f)
+    {
+        onchange_prop<Widget> prop;
+        prop.f_ = f;
+        return prop;
+    }
+    template<typename Functor>
+    auto operator= (const Functor& functor)
+    {
+        return operator= ((lambda_transfer(), functor));
+    }
+} onchange;
 
 ///////////////////////////
 
@@ -485,6 +542,21 @@ public:
                 sender = dynamic_cast<Tsender*>(e_);
         }
         return operator [] (std::make_pair(&Widget::textChanged, [=](const QString& s){ f((Widget*)sender, s); }));
+    }
+    template<typename Widget>
+    layout_builder& operator [] (const onchange_prop<Widget>& op)
+    {
+        /// deprecated
+        auto f = op.f_;
+        typedef typename QtPrivate::FunctionPointer<decltype(&Widget::valueChanged)>::Object Tsender;
+        Tsender* sender = 0;
+        if (w_)
+        {
+            sender = dynamic_cast<Tsender*>(w_);
+            if (!sender)
+                sender = dynamic_cast<Tsender*>(e_);
+        }
+        return operator [] (std::make_pair(&Widget::valueChanged, [=](int val){ f((Widget*)sender, val); }));
     }
     layout_builder& operator [] (const QString& s)
     {
@@ -675,6 +747,12 @@ public:
         info_->setToolTip(txt);
         return *this;
     }
+	/// Z#20241103
+	cell_builder& operator [](const QVariant& var)
+	{
+		info_->setData(Qt::DisplayRole, var);
+		return *this;
+	}
     cell_builder& operator [](const QColor& color)
     {
         info_->setForeground(QBrush(color));
@@ -841,6 +919,33 @@ public:
 
         return *this;
     }
+	/// Z#20241103, add (const std::string&), (const char*), (const QVariant&)
+	row_builder& operator ()(const std::string& txt)
+	{
+		return this->operator()(QString::fromStdString(txt));
+	}
+	row_builder& operator ()(const char* txt)
+	{
+		return this->operator()(QString(txt));
+	}
+	row_builder& operator ()(const QVariant& var)
+	{
+		finish_prev_cell();
+
+		if (col_ == 0)
+			ctrl_->insertRow(row_);
+
+		// defer to setItem
+		if (!cell_)
+			cell_.reset(&cell::begin());
+
+		// unlike the zwx version, wxlistctrl item takes the col_,
+		//                         qtablewidget item does not.
+		cell_->operator ()(row_, col_);
+		(*cell_)[var];
+
+		return *this;
+	}
     row_builder& operator [](const QColor& color)
     {
         if (cell_)
