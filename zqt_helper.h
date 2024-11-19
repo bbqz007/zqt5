@@ -513,6 +513,19 @@ public:
 
         return *this;
     }
+	/// Z#20241119 add Validator
+	layout_builder& operator [] (const QIntValidator& valid)
+	{
+		if (w_)
+		{
+			auto* edit = dynamic_cast<QLineEdit*>(w_);
+			if (edit)
+			{
+				edit->setValidator(new QIntValidator(valid.bottom(), valid.top(), w_));
+			}
+		}
+		return *this;
+	}
     template<typename Widget>
     layout_builder& operator [] (const onclick_prop<Widget>& op)
     {
